@@ -118,3 +118,11 @@ base64 < signing/tingjian-debug.keystore | gh secret set SIGNING_KEYSTORE_BASE64
 PR 构建不读取签名 Secret。修改版本并提交后，推送 `v0.1.5` 标签触发发布。
 
 混淆映射由构建生成，Actions 单独保存；私有源码 ZIP 也保存对应签名 APK 的 mapping。
+
+## 正式签名密钥
+
+正式密钥别名为 `tingjian`，PKCS12 / RSA 3072。密钥和密码保存在个人签名备份包，
+仓库不包含 signing 目录。将备份包 github-secrets 中四个同名文件的内容设置为
+SIGNING_KEYSTORE_BASE64、SIGNING_STORE_PASSWORD、SIGNING_KEY_ALIAS、SIGNING_KEY_PASSWORD。
+也可使用备份包 configure-github-secrets.py，通过已登录的 GitHub CLI 设置。
+使用新签名时首次安装需卸载旧测试包，之后固定此密钥更新。
