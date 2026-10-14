@@ -69,6 +69,7 @@ class PlaybackService : MediaSessionService() {
         parts = PartPlayback(scope, { detail, part -> repository.audio(detail.video.bvid, part.cid) },
             object : PartPlayer {
                 override fun select(detail: VideoDetail, index: Int, playWhenReady: Boolean) {
+                    saveHistoryProgress()
                     recordedMediaId = null
                     player.stop()
                     // The cancellable pending source keeps the service in buffering/foreground.
@@ -84,6 +85,7 @@ class PlaybackService : MediaSessionService() {
                     player.playWhenReady = playWhenReady
                 }
                 override fun stop(clear: Boolean) {
+                    saveHistoryProgress()
                     player.playWhenReady = false
                     player.stop()
                     if (clear) player.clearMediaItems()
@@ -121,14 +123,16 @@ class PlaybackService : MediaSessionService() {
                     val detail = state.detail
                     val part = state.part
                     if (detail != null && part != null) {
-                        runCatching { (application as BiliAudioApp).history.record(HistoryEntry(detail.video, part)) }
+                        runCatching { (application as BiliAudioApp).history.record(HistoryEntry(detail.video, part, player.currentPosition.coerceAtLeast(0))) }
                         recordedMediaId = mediaId
                     }
                 }
+                saveHistoryProgress()
                 if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) && player.playbackState == Player.STATE_ENDED)
                     parts.ended(player.repeatMode == Player.REPEAT_MODE_ONE)
             }
         })
+        scope.launch { while (true) { delay(5000); saveHistoryProgress() } }
         val activity = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         session = MediaSession.Builder(this, player).setSessionActivity(activity)
@@ -158,8 +162,20 @@ class PlaybackService : MediaSessionService() {
                             PartCommands.next.customAction, PartCommands.retry.customAction)) {
                         val accepted = try {
                             when (customCommand.customAction) {
-                                PartCommands.play.customAction -> parts.play(VideoDetailCodec.decode(
-                                    args.getString(PartCommands.DETAIL) ?: error("视频信息缺失")), args.getLong(PartCommands.CID))
+                                PartCommands.play.customAction -> {
+                                    saveHistoryProgress()
+                                    val detail = VideoDetailCodec.decode(args.getString(PartCommands.DETAIL)
+                                        ?: error("视频信息缺失"))
+                                    val cid = args.getLong(PartCommands.CID)
+                                    val part = detail.parts.firstOrNull { it.cid == cid }
+                                    val entry = (application as BiliAudioApp).history.entries.value
+                                        .firstOrNull { it.key == "${detail.video.bvid}:$cid" }
+                                    val position = if (args.getBoolean(PartCommands.RESUME))
+                                        entry?.resumePosition(part?.durationSeconds ?: 0)
+                                            ?: args.getLong(PartCommands.POSITION).coerceAtLeast(0)
+                                        else 0
+                                    parts.play(detail, cid, position)
+                                }
                                 PartCommands.select.customAction -> parts.select(args.getLong(PartCommands.CID))
                                 PartCommands.previous.customAction -> parts.previous()
                                 PartCommands.next.customAction -> parts.next()
@@ -191,6 +207,13 @@ class PlaybackService : MediaSessionService() {
                 }
             }).build()
     }
+    private fun saveHistoryProgress() {
+        if (!::player.isInitialized) return
+        val key = recordedMediaId ?: return
+        if (player.currentMediaItem?.mediaId != key) return
+        val position = if (player.playbackState == Player.STATE_ENDED) 0 else player.currentPosition.coerceAtLeast(0)
+        runCatching { (application as BiliAudioApp).history.updateProgress(key, position) }
+    }
     private fun setMusicVolume(volume: MusicVolume) {
         PlaybackStatus.volume.value = volume
         volumeFader.fadeTo(volume.gain)
@@ -212,6 +235,7 @@ class PlaybackService : MediaSessionService() {
     }
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
     override fun onDestroy() {
+        saveHistoryProgress()
         saveMusicVolume()
         if (::parts.isInitialized) parts.stop()
         scope.cancel()

@@ -235,4 +235,20 @@ class PartPlaybackTest {
         assertEquals(listOf(1L, 3L), output.starts.map { it.cid })
         assertEquals(1, output.finished)
     }
+    @Test fun historyResumesSelectedPartAndFollowingPartStartsAtZero() = runTest {
+        val output = Output(); val player = engine(this, output)
+        player.play(detail, 2, position = 42000); advanceUntilIdle()
+        assertEquals(Start(2, 0, 42000, true), output.starts.last())
+        player.ended(repeatOne = false); advanceUntilIdle()
+        assertEquals(Start(3, 0, 0, true), output.starts.last())
+    }
+
+    @Test fun failedHistoryPartDoesNotTransferItsPositionToNextPart() = runTest {
+        val output = Output(); val player = engine(this, output) { _, part ->
+            if (part.cid == 2L) error("不可用") else stream
+        }
+        player.play(detail, 2, position = 42000); advanceUntilIdle()
+        assertEquals(Start(3, 0, 0, true), output.starts.single())
+    }
+
 }

@@ -150,7 +150,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
                 if (epoch != detailEpoch) return@launch
                 val part = detail.parts.firstOrNull { it.cid == entry.part.cid }
                     ?: error("历史记录中的分 P 已不可用")
-                play(detail, part, refresh = true)
+                play(detail, part, refresh = true, historyEntry = entry)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (epoch == detailEpoch) PlaybackStatus.error.value = e.message ?: "历史记录播放失败"
@@ -163,13 +163,15 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         detailJob?.cancel(); detailEpoch++
         _screen.update { it.copy(detail = null, detailLoading = null) }
     }
-    fun play(detail: VideoDetail, part: VideoPart, refresh: Boolean = false) {
+    fun play(detail: VideoDetail, part: VideoPart, refresh: Boolean = false, historyEntry: HistoryEntry? = null) {
         cancelDetailRequest()
         val c = controller?.takeIf { it.isConnected } ?: return
         if (!refresh && parts.value.detail?.video?.bvid == detail.video.bvid) {
             c.sendCustomCommand(PartCommands.select, Bundle().apply { putLong(PartCommands.CID, part.cid) })
         } else c.sendCustomCommand(PartCommands.play, Bundle().apply {
             putString(PartCommands.DETAIL, VideoDetailCodec.encode(detail)); putLong(PartCommands.CID, part.cid)
+            putBoolean(PartCommands.RESUME, historyEntry != null)
+            putLong(PartCommands.POSITION, historyEntry?.resumePosition(part.durationSeconds) ?: 0)
         })
     }
     fun retryPlayback() {

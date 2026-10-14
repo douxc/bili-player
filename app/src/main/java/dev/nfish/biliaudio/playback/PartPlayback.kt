@@ -47,12 +47,12 @@ class PartPlayback(
     private var candidate = 0
     private val retries = RetryBudget()
 
-    fun play(detail: VideoDetail, cid: Long): Boolean {
+    fun play(detail: VideoDetail, cid: Long, position: Long = 0): Boolean {
         require(detail.parts.isNotEmpty() && detail.parts.all { it.cid > 0 })
         require(detail.parts.map { it.cid }.distinct().size == detail.parts.size)
         val index = detail.parts.indexOfFirst { it.cid == cid }
         if (index < 0) return false
-        load(detail, index, playWhenReady = true)
+        load(detail, index, position = position, playWhenReady = true)
         return true
     }
 

@@ -16,6 +16,8 @@ object PartCommands {
     val retry = SessionCommand("dev.nfish.biliaudio.RETRY_PART", Bundle.EMPTY)
     const val DETAIL = "video_detail"
     const val CID = "cid"
+    const val POSITION = "position_ms"
+    const val RESUME = "resume_history"
 }
 
 /** Transfer metadata, never temporary CDN URLs or account credentials. */

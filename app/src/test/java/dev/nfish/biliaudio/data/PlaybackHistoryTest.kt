@@ -39,7 +39,7 @@ class PlaybackHistoryTest {
         val restored = PlaybackHistory({ saved }, {})
         assertEquals(listOf(large, entry(1)), restored.entries.value)
         assertFalse(saved.contains("urls"))
-        assertFalse(saved.contains("position"))
+        assertTrue(saved.contains("positionMs"))
     }
 
     @Test fun corruptedStorageDoesNotPreventStartup() {
@@ -54,4 +54,26 @@ class PlaybackHistoryTest {
         array.getJSONObject(0).put("cid", -1)
         assertEquals(listOf(3L, 2L, 1L), HistoryCodec.decode(array.toString()).map { it.part.cid })
     }
+    @Test fun progressSurvivesRestartWithoutReorderingOrAddingEntries() {
+        var saved = ""
+        val history = PlaybackHistory({ saved }, { saved = it })
+        (1L..3L).forEach { history.record(entry(it)) }
+        history.updateProgress(entry(1).key, 42000)
+        history.updateProgress(entry(4).key, 1000)
+        val restored = PlaybackHistory({ saved }, {})
+        assertEquals(listOf(3L, 2L, 1L), restored.entries.value.map { it.part.cid })
+        assertEquals(42000L, restored.entries.value.last().positionMs)
+    }
+
+    @Test fun legacyAndInvalidProgressRestoreSafely() {
+        val array = JSONArray(HistoryCodec.encode(listOf(entry(1))))
+        array.getJSONObject(0).remove("positionMs")
+        assertEquals(0L, HistoryCodec.decode(array.toString()).single().positionMs)
+        array.getJSONObject(0).put("positionMs", -10)
+        assertEquals(0L, HistoryCodec.decode(array.toString()).single().positionMs)
+        assertEquals(0L, entry(1).copy(positionMs = 120000).resumePosition())
+        assertEquals(0L, entry(1).copy(positionMs = 42000).resumePosition(30))
+        assertEquals(42000L, entry(1).copy(positionMs = 42000).resumePosition())
+    }
+
 }
