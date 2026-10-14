@@ -60,7 +60,7 @@ jobs:
       - name: Test, lint and build Release
         env:
           SIGNING_STORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.SIGNING_STORE_PASSWORD || '' }}
-          SIGNING_KEY_ALIAS: ${{ github.event_name != 'pull_request' && secrets.SIGNING_KEY_ALIAS || '' }}
+          SIGNING_KEY_ALIAS: ${{ github.event_name != 'pull_request' && (vars.SIGNING_KEY_ALIAS || secrets.SIGNING_KEY_ALIAS) || '' }}
           SIGNING_KEY_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.SIGNING_KEY_PASSWORD || '' }}
         run: ./gradlew --no-daemon :app:testReleaseUnitTest :app:lintRelease :app:assembleRelease
       - name: Verify and package APK

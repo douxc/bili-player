@@ -104,9 +104,10 @@ Windows 使用 `gradlew.bat`。APK 输出：`app/build/outputs/apk/release/app-r
 - APK 与 mapping、验证报告分别作为 Artifacts 保存 30 天；Gradle 缓存与 Wrapper 校验已启用。
 - 所有 Actions 固定到已核对的官方提交 SHA。
 
-在仓库 Actions Secrets 添加 `SIGNING_KEYSTORE_BASE64`。沿用原密钥时，其余值默认
-android / androiddebugkey / android。更换密钥时还需设置 SIGNING_STORE_PASSWORD、
-SIGNING_KEY_ALIAS 和 SIGNING_KEY_PASSWORD。
+在仓库 Actions Secrets 添加 `SIGNING_KEYSTORE_BASE64`、`SIGNING_STORE_PASSWORD`
+和 `SIGNING_KEY_PASSWORD`，在 Actions Variables 添加 `SIGNING_KEY_ALIAS`。
+别名优先读取 Variables，也兼容同名 Secret。沿用原测试密钥时，密码默认 android，
+别名默认 androiddebugkey。
 
 已登录 GitHub CLI 且本地持有原密钥时：
 
@@ -122,7 +123,11 @@ PR 构建不读取签名 Secret。修改版本并提交后，推送 `v0.1.5` 标
 ## 正式签名密钥
 
 正式密钥别名为 `tingjian`，PKCS12 / RSA 3072。密钥和密码保存在个人签名备份包，
-仓库不包含 signing 目录。将备份包 github-secrets 中四个同名文件的内容设置为
-SIGNING_KEYSTORE_BASE64、SIGNING_STORE_PASSWORD、SIGNING_KEY_ALIAS、SIGNING_KEY_PASSWORD。
-也可使用备份包 configure-github-secrets.py，通过已登录的 GitHub CLI 设置。
+仓库不包含 signing 目录。将备份包 github-secrets 中的同名文件内容设置为：
+
+- Actions Secrets：`SIGNING_KEYSTORE_BASE64`、`SIGNING_STORE_PASSWORD`、`SIGNING_KEY_PASSWORD`。
+- Actions Variables：`SIGNING_KEY_ALIAS`，值为 `tingjian`。
+
+也可使用备份包 configure-github-secrets.py，通过已登录的 GitHub CLI 将四项全部
+设置为 Secrets；工作流兼容这种配置。
 使用新签名时首次安装需卸载旧测试包，之后固定此密钥更新。
