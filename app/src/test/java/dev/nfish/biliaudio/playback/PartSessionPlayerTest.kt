@@ -100,6 +100,8 @@ class PartSessionPlayerTest {
     @Test fun buttonsNotifyControllersAfterAppSelectionAndDisappearAfterStop() = runTest {
         val parts = PartPlayback(this, { _, _ -> stream }, Output())
         val session = PartSessionPlayer(AudioPlayer(), parts)
+        // A controller reads the initial state before listening for subsequent updates.
+        assertFalse(session.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT))
         var updates = 0
         session.addListener(object : Player.Listener {
             override fun onAvailableCommandsChanged(commands: Player.Commands) { updates++ }
