@@ -18,6 +18,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @UnstableApi
@@ -104,11 +105,14 @@ class PartSessionPlayerTest {
             override fun onAvailableCommandsChanged(commands: Player.Commands) { updates++ }
         })
         parts.play(detail, 1); advanceUntilIdle(); session.refreshCommands()
+        shadowOf(Looper.getMainLooper()).idle()
         assertTrue(session.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT))
         parts.select(3); advanceUntilIdle(); session.refreshCommands()
+        shadowOf(Looper.getMainLooper()).idle()
         assertFalse(session.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT))
         assertTrue(session.isCommandAvailable(Player.COMMAND_SEEK_TO_PREVIOUS))
         parts.stop(); session.refreshCommands()
+        shadowOf(Looper.getMainLooper()).idle()
         assertFalse(session.isCommandAvailable(Player.COMMAND_SEEK_TO_PREVIOUS))
         assertFalse(session.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT))
         assertTrue(updates >= 3)
