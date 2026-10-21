@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 class PlaybackService : MediaSessionService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var player: ExoPlayer
+    private lateinit var sessionPlayer: PartSessionPlayer
     private var session: MediaSession? = null
     private lateinit var parts: PartPlayback
     private val repository get() = (application as BiliAudioApp).repository
@@ -93,8 +94,10 @@ class PlaybackService : MediaSessionService() {
                 override fun replay() { player.seekTo(0); player.play() }
                 override fun finish() { player.playWhenReady = false }
             })
+        sessionPlayer = PartSessionPlayer(player, parts)
         scope.launch {
             parts.state.collect { state ->
+                sessionPlayer.refreshCommands()
                 PlaybackStatus.parts.value = state
                 PlaybackStatus.resolving.value = state.loading
                 PlaybackStatus.error.value = state.error
@@ -135,7 +138,7 @@ class PlaybackService : MediaSessionService() {
         scope.launch { while (true) { delay(5000); saveHistoryProgress() } }
         val activity = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        session = MediaSession.Builder(this, player).setSessionActivity(activity)
+        session = MediaSession.Builder(this, sessionPlayer).setSessionActivity(activity)
             .setCallback(object : MediaSession.Callback {
                 override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
                     if (controller.packageName != packageName && !controller.isTrusted)
